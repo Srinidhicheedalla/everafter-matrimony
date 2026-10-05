@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { API_URL as API } from './env.js';
+
+const BACKEND_DIR = path.resolve(import.meta.dirname, '../../backend');
 
 // API-level security and data-rule checks. Independent tests (no shared
 // state), kept apart from the serial UI journey in homepage.spec.js.
@@ -206,4 +214,85 @@ test('Search does not list your own profile', async ({ request }) => {
 
   const all = await (await request.get(`${API}/profile/all`, { headers: me.headers })).json();
   expect(all.some((p) => p.userId === me.id)).toBe(false);
+});
+
+test('Repeated failed logins block that account for that client only', async ({ request }) => {
+  const victim = await signup(request, 'victim');
+  const other = await signup(request, 'other');
+  const login = (email, password) => request.post(`${API}/auth/login`, { data: { email, password } });
+
+  let blocked;
+  for (let attempt = 1; attempt <= 50 && !blocked; attempt++) {
+    const res = await login(victim.email, 'wrong-' + attempt);
+    if (res.status() === 429) blocked = res;
+    else expect(res.status()).toBe(401);
+  }
+
+  expect(blocked, 'never rate limited after 50 wrong passwords').toBeTruthy();
+  expect((await blocked.json()).message).toMatch(/Too many failed login attempts/);
+
+  // Blocked even with the right password, or guessing could simply continue
+  expect((await login(victim.email, PASSWORD)).status()).toBe(429);
+
+  // Other accounts are unaffected
+  expect((await login(other.email, PASSWORD)).status()).toBe(200);
+});
+
+test('Database failures return a generic 500 without internal details', async ({ request }) => {
+  // A second backend on a DB whose users table lacks columns, so a real
+  // database error happens at runtime (the schema setup itself succeeds)
+  const dir = mkdtempSync(path.join(tmpdir(), 'everafter-'));
+  const dbPath = path.join(dir, 'broken.db');
+  const sqlite3 = createRequire(path.join(BACKEND_DIR, 'package.json'))('sqlite3');
+  await new Promise((resolve, reject) => {
+    const db = new sqlite3.Database(dbPath);
+    db.run('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)', (err) =>
+      db.close(() => (err ? reject(err) : resolve()))
+    );
+  });
+
+  const port = Number(new URL(API).port) + 1;
+  const server = spawn(process.execPath, ['server.js'], {
+    cwd: BACKEND_DIR,
+    env: { ...process.env, PORT: String(port), DB_PATH: dbPath },
+    stdio: 'ignore',
+  });
+
+  try {
+    const base = `http://localhost:${port}`;
+    await expect
+      .poll(async () => (await request.get(base).catch(() => null))?.ok(), { timeout: 10000 })
+      .toBe(true);
+
+    const res = await request.post(`${base}/api/auth/register`, {
+      data: { fullName: 'X', email: `x${Date.now()}@gmail.com`, password: PASSWORD },
+    });
+    const text = await res.text();
+
+    expect(res.status()).toBe(500);
+    expect(JSON.parse(text)).toEqual({ success: false, message: 'Something went wrong' });
+    expect(text).not.toMatch(/sqlite|column|table/i);
+  } finally {
+    // Windows keeps the DB file locked until the process has really exited
+    if (server.exitCode === null && server.signalCode === null) {
+      const exited = once(server, 'exit');
+      server.kill();
+      await exited;
+    }
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  }
+});
+
+test('Profile fields have type and length limits', async ({ request }) => {
+  const me = await signup(request, 'limits');
+  const save = async (data) =>
+    (await request.post(`${API}/profile/save`, { headers: me.headers, data })).status();
+
+  expect(await save({ city: 'x'.repeat(101) })).toBe(400);
+  expect(await save({ aboutMe: 'x'.repeat(2001) })).toBe(400);
+  expect(await save({ city: { $gt: '' } })).toBe(400);
+  expect(await save({ caste: ['a', 'b'] })).toBe(400);
+
+  // At the limits, and numbers, are fine
+  expect(await save({ city: 'x'.repeat(100), aboutMe: 'x'.repeat(2000), annualIncome: 500000 })).toBe(200);
 });

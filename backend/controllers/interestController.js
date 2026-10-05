@@ -9,7 +9,7 @@ const STATUS = {
 // ===============================
 // Send Interest
 // ===============================
-exports.sendInterest = (req, res) => {
+exports.sendInterest = (req, res, next) => {
   const senderId = req.user.id;
   const receiverId = Number(req.body?.receiverId);
 
@@ -38,10 +38,7 @@ exports.sendInterest = (req, res) => {
     { $a: senderId, $b: receiverId },
     (err, row) => {
       if (err) {
-        return res.json({
-          success: false,
-          message: err.message,
-        });
+        return next(err);
       }
 
       if (!row.receiverExists) {
@@ -76,10 +73,7 @@ exports.sendInterest = (req, res) => {
           }
 
           if (err) {
-            return res.json({
-              success: false,
-              message: err.message,
-            });
+            return next(err);
           }
 
           res.json({
@@ -95,7 +89,7 @@ exports.sendInterest = (req, res) => {
 // ===============================
 // Received Interests
 // ===============================
-exports.getReceivedInterests = (req, res) => {
+exports.getReceivedInterests = (req, res, next) => {
   db.all(
     `
     SELECT
@@ -109,10 +103,7 @@ exports.getReceivedInterests = (req, res) => {
     [req.user.id],
     (err, rows) => {
       if (err) {
-        return res.json({
-          success: false,
-          message: err.message,
-        });
+        return next(err);
       }
 
       res.json(rows);
@@ -124,7 +115,7 @@ exports.getReceivedInterests = (req, res) => {
 // Accept / Reject Interest
 // ===============================
 // Only the receiver may respond; anyone else gets 404 so ids can't be probed
-const respondToInterest = (status) => (req, res) => {
+const respondToInterest = (status) => (req, res, next) => {
   db.run(
     `UPDATE interests
      SET status=?
@@ -132,10 +123,7 @@ const respondToInterest = (status) => (req, res) => {
     [status, req.params.id, req.user.id],
     function (err) {
       if (err) {
-        return res.json({
-          success: false,
-          message: err.message,
-        });
+        return next(err);
       }
 
       if (this.changes === 0) {
@@ -160,7 +148,7 @@ exports.rejectInterest = respondToInterest(STATUS.REJECTED);
 // Get Matches
 // ===============================
 // An accepted interest is a match for both people; each sees the other one
-exports.getMatches = (req, res) => {
+exports.getMatches = (req, res, next) => {
   db.all(
     `
     SELECT
@@ -189,10 +177,7 @@ exports.getMatches = (req, res) => {
     { $me: req.user.id, $accepted: STATUS.ACCEPTED },
     (err, rows) => {
       if (err) {
-        return res.json({
-          success: false,
-          message: err.message,
-        });
+        return next(err);
       }
 
       res.json(rows);

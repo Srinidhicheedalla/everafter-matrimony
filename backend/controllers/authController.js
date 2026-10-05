@@ -14,7 +14,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 // Register User
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
   try {
     const { fullName: rawName, email: rawEmail, password } = req.body || {};
 
@@ -47,10 +47,7 @@ exports.register = async (req, res) => {
       [email],
       async (err, user) => {
         if (err) {
-          return res.status(500).json({
-            success: false,
-            message: err.message
-          });
+          return next(err);
         }
 
         if (user) {
@@ -76,10 +73,7 @@ exports.register = async (req, res) => {
             }
 
             if (err) {
-              return res.status(500).json({
-                success: false,
-                message: err.message
-              });
+              return next(err);
             }
 
             return res.status(201).json({
@@ -92,15 +86,12 @@ exports.register = async (req, res) => {
       }
     );
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    return next(error);
   }
 };
 
 // Login User
-exports.login = (req, res) => {
+exports.login = (req, res, next) => {
   const { email, password } = req.body || {};
 
   if (!isFilled(email) || !isFilled(password)) {
@@ -115,10 +106,7 @@ exports.login = (req, res) => {
     [normalizeEmail(email)],
     async (err, user) => {
       if (err) {
-        return res.status(500).json({
-          success: false,
-          message: err.message
-        });
+        return next(err);
       }
 
       // Same response for unknown email and wrong password, so login can't be

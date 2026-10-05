@@ -82,7 +82,7 @@ function Profile() {
       alert(res.data.message);
     } catch (err) {
       console.log(err);
-      alert("Failed to save profile");
+      alert(err.response?.data?.message || "Failed to save profile");
     }
   };
 
@@ -214,6 +214,7 @@ function Profile() {
       <textarea
         name="aboutMe"
         placeholder="About Me"
+        maxLength={2000}
         rows="4"
         style={{ width: "100%" }}
         value={formData.aboutMe}
@@ -226,6 +227,7 @@ function Profile() {
       <textarea
         name="familyDetails"
         placeholder="Family Details"
+        maxLength={2000}
         rows="4"
         style={{ width: "100%" }}
         value={formData.familyDetails}
@@ -238,6 +240,7 @@ function Profile() {
       <textarea
         name="partnerPreference"
         placeholder="Partner Preference"
+        maxLength={2000}
         rows="4"
         style={{ width: "100%" }}
         value={formData.partnerPreference}
