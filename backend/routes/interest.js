@@ -13,7 +13,7 @@ const {
 router.post("/send", sendInterest);
 
 // Received Interests
-router.get("/received/:id", getReceivedInterests);
+router.get("/received", getReceivedInterests);
 
 // Accept Interest
 router.put("/accept/:id", acceptInterest);
@@ -22,6 +22,6 @@ router.put("/accept/:id", acceptInterest);
 router.put("/reject/:id", rejectInterest);
 
 // Matches
-router.get("/matches/:id", getMatches);
+router.get("/matches", getMatches);
 
 module.exports = router;

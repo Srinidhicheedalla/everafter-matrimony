@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 
 function Matches() {
-  const user = JSON.parse(localStorage.getItem("user"));
 
   const [matches, setMatches] = useState([]);
 
@@ -12,8 +11,8 @@ function Matches() {
 
   const fetchMatches = async () => {
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/interest/matches/${user.id}`
+      const res = await api.get(
+        `/interest/matches`
       );
 
       setMatches(res.data);

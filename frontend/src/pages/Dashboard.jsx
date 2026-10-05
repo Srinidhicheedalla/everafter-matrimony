@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 
 function Dashboard() {
   const { user, logout } = useAuth();
@@ -19,20 +19,20 @@ function Dashboard() {
 
   const loadDashboard = async () => {
     try {
-      const profiles = await axios.get(
-        "http://localhost:5000/api/profile/all"
+      const profiles = await api.get(
+        "/profile/all"
       );
 
-      const interests = await axios.get(
-        `http://localhost:5000/api/interest/received/${user.id}`
+      const interests = await api.get(
+        `/interest/received`
       );
 
-      const matches = await axios.get(
-        `http://localhost:5000/api/interest/matches/${user.id}`
+      const matches = await api.get(
+        `/interest/matches`
       );
 
-      const myProfile = await axios.get(
-        `http://localhost:5000/api/profile/${user.id}`
+      const myProfile = await api.get(
+        `/profile/${user.id}`
       );
 
       let percentage = 0;
@@ -94,9 +94,8 @@ function Dashboard() {
       <p>{user?.email}</p>
 
       <div
+        className="grid grid-cols-2 lg:grid-cols-4"
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
           gap: "20px",
           marginTop: "40px",
         }}
@@ -127,9 +126,8 @@ function Dashboard() {
       </h2>
 
       <div
+        className="grid grid-cols-2 md:grid-cols-3"
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3,1fr)",
           gap: "20px",
           marginTop: "20px",
         }}
@@ -167,7 +165,7 @@ function Dashboard() {
 
 const cardStyle = {
   background: "#fff",
-  padding: "30px",
+  padding: "clamp(16px, 4vw, 30px)",
   borderRadius: "10px",
   textAlign: "center",
   boxShadow: "0 0 10px rgba(0,0,0,.12)",
@@ -175,6 +173,7 @@ const cardStyle = {
 
 const btnStyle = {
   width: "100%",
+  height: "100%", // equal heights when labels wrap on narrow screens
   padding: "18px",
   background: "#8B0000",
   color: "white",

@@ -94,11 +94,22 @@ cd backend
 npm install
 ```
 
-### 3. Start the backend
+### 3. Configure and start the backend
+
+Create `backend/.env` from the example and set `JWT_SECRET` to a long random value (the server refuses to start without it):
+
+```bash
+cp .env.example .env
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+Paste the printed value after `JWT_SECRET=` in `backend/.env`, then:
 
 ```bash
 npm start
 ```
+
+`.env.example` also documents the optional `DB_PATH` and `CORS_ORIGIN` settings. The frontend reads the API address from `frontend/.env.development` (`VITE_API_URL`).
 
 ### 4. Install frontend dependencies
 
@@ -125,11 +136,16 @@ http://localhost:5173
 
 The project includes Playwright-based UI automation tests.
 
-From the `frontend` directory:
+From the `frontend` directory (first run: `npx playwright install chromium`):
 
 ```bash
 npx playwright test
 ```
+
+The tests start their own backend (port 5001, in-memory database) and frontend (port 5174), so they never touch your development data. `backend/.env` must exist (see step 3).
+
+* `tests/homepage.spec.js` – end-to-end user journey (serial)
+* `tests/api-security.spec.js` – API authorization and validation checks
 
 To open the generated Playwright HTML report:
 

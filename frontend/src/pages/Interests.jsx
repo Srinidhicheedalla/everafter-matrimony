@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 
 function Interests() {
-  const user = JSON.parse(localStorage.getItem("user"));
 
   const [interests, setInterests] = useState([]);
 
@@ -12,8 +11,8 @@ function Interests() {
 
   const fetchInterests = async () => {
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/interest/received/${user.id}`
+      const res = await api.get(
+        `/interest/received`
       );
 
       setInterests(res.data);
@@ -24,8 +23,8 @@ function Interests() {
 
   const acceptInterest = async (id) => {
     try {
-      const res = await axios.put(
-        `http://localhost:5000/api/interest/accept/${id}`
+      const res = await api.put(
+        `/interest/accept/${id}`
       );
 
       alert(res.data.message);
@@ -38,8 +37,8 @@ function Interests() {
 
   const rejectInterest = async (id) => {
     try {
-      const res = await axios.put(
-        `http://localhost:5000/api/interest/reject/${id}`
+      const res = await api.put(
+        `/interest/reject/${id}`
       );
 
       alert(res.data.message);

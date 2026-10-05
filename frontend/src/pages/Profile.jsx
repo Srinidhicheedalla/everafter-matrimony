@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 function Profile() {
-  const user = JSON.parse(localStorage.getItem("user"));
+  // From context, not JSON.parse(localStorage): a fresh object every render
+  // re-triggered the effect below in an endless fetch loop that wiped user input
+  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
-    userId: user?.id || "",
     dob: "",
     gender: "",
     height: "",
@@ -30,13 +32,12 @@ function Profile() {
 
     const loadProfile = async () => {
       try {
-        const res = await axios.get(
-          `http://localhost:5000/api/profile/${user.id}`
+        const res = await api.get(
+          `/profile/${user.id}`
         );
 
         if (res.data) {
           setFormData({
-            userId: user.id,
             dob: res.data.dob || "",
             gender: res.data.gender || "",
             height: res.data.height || "",
@@ -73,8 +74,8 @@ function Profile() {
 
   const saveProfile = async () => {
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/profile/save",
+      const res = await api.post(
+        "/profile/save",
         formData
       );
 
@@ -88,9 +89,9 @@ function Profile() {
   return (
     <div
       style={{
-        maxWidth: "900px",
+        width: "min(900px, 100% - 32px)",
         margin: "30px auto",
-        padding: "30px",
+        padding: "clamp(16px, 5vw, 30px)",
         background: "#fff",
         borderRadius: "10px",
         boxShadow: "0 0 10px rgba(0,0,0,.15)",
@@ -101,9 +102,8 @@ function Profile() {
       </h1>
 
       <div
+        className="grid grid-cols-1 sm:grid-cols-2"
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
           gap: "15px",
           marginTop: "20px",
         }}

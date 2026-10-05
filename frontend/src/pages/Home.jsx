@@ -8,7 +8,7 @@ function Home() {
         padding: "80px 20px",
       }}
     >
-      <h1 style={{ color: "#8B0000", fontSize: "48px" }}>
+      <h1 style={{ color: "#8B0000", fontSize: "clamp(32px, 8vw, 48px)" }}>
         EverAfter Matrimony
       </h1>
 
@@ -21,13 +21,21 @@ function Home() {
         Find Your Perfect Life Partner
       </p>
 
-      <div style={{ marginTop: "40px" }}>
+      <div
+        style={{
+          marginTop: "40px",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: "15px",
+        }}
+      >
         <Link to="/register">
           <button
             style={{
-              padding: "12px 25px",
-              marginRight: "15px",
-              cursor: "pointer",
+              ...btnStyle,
+              background: "#8B0000",
+              color: "white",
             }}
           >
             Register
@@ -37,8 +45,9 @@ function Home() {
         <Link to="/login">
           <button
             style={{
-              padding: "12px 25px",
-              cursor: "pointer",
+              ...btnStyle,
+              background: "transparent",
+              color: "#8B0000",
             }}
           >
             Login
@@ -48,5 +57,13 @@ function Home() {
     </div>
   );
 }
+
+const btnStyle = {
+  padding: "12px 28px",
+  border: "2px solid #8B0000",
+  borderRadius: "6px",
+  fontSize: "16px",
+  cursor: "pointer",
+};
 
 export default Home;

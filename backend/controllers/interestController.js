@@ -1,15 +1,22 @@
 const db = require("../database");
 
+const STATUS = {
+  PENDING: "Pending",
+  ACCEPTED: "Accepted",
+  REJECTED: "Rejected",
+};
+
 // ===============================
 // Send Interest
 // ===============================
 exports.sendInterest = (req, res) => {
-  const { senderId, receiverId } = req.body;
+  const senderId = req.user.id;
+  const { receiverId } = req.body || {};
 
-  if (!senderId || !receiverId) {
+  if (!receiverId) {
     return res.json({
       success: false,
-      message: "Sender and Receiver are required",
+      message: "Receiver is required",
     });
   }
 
@@ -20,10 +27,13 @@ exports.sendInterest = (req, res) => {
     });
   }
 
+  // One interest per pair, whichever direction: if B could also send to A,
+  // accepting both would list the same match twice
   db.get(
-    `SELECT * FROM interests
-     WHERE senderId=? AND receiverId=?`,
-    [senderId, receiverId],
+    `SELECT senderId FROM interests
+     WHERE (senderId=$a AND receiverId=$b)
+        OR (senderId=$b AND receiverId=$a)`,
+    { $a: senderId, $b: receiverId },
     (err, row) => {
       if (err) {
         return res.json({
@@ -35,14 +45,17 @@ exports.sendInterest = (req, res) => {
       if (row) {
         return res.json({
           success: false,
-          message: "Interest already sent",
+          message:
+            row.senderId == senderId
+              ? "Interest already sent"
+              : "This member already sent you an interest. Check your Interests page.",
         });
       }
 
       db.run(
         `INSERT INTO interests(senderId,receiverId,status)
          VALUES(?,?,?)`,
-        [senderId, receiverId, "Pending"],
+        [senderId, receiverId, STATUS.PENDING],
         function (err) {
           if (err) {
             return res.json({
@@ -75,7 +88,7 @@ exports.getReceivedInterests = (req, res) => {
     ON interests.senderId = users.id
     WHERE receiverId=?
     `,
-    [req.params.id],
+    [req.user.id],
     (err, rows) => {
       if (err) {
         return res.json({
@@ -90,14 +103,15 @@ exports.getReceivedInterests = (req, res) => {
 };
 
 // ===============================
-// Accept Interest
+// Accept / Reject Interest
 // ===============================
-exports.acceptInterest = (req, res) => {
+// Only the receiver may respond; anyone else gets 404 so ids can't be probed
+const respondToInterest = (status) => (req, res) => {
   db.run(
     `UPDATE interests
-     SET status='Accepted'
-     WHERE id=?`,
-    [req.params.id],
+     SET status=?
+     WHERE id=? AND receiverId=?`,
+    [status, req.params.id, req.user.id],
     function (err) {
       if (err) {
         return res.json({
@@ -106,42 +120,28 @@ exports.acceptInterest = (req, res) => {
         });
       }
 
-      res.json({
-        success: true,
-        message: "Interest Accepted",
-      });
-    }
-  );
-};
-
-// ===============================
-// Reject Interest
-// ===============================
-exports.rejectInterest = (req, res) => {
-  db.run(
-    `UPDATE interests
-     SET status='Rejected'
-     WHERE id=?`,
-    [req.params.id],
-    function (err) {
-      if (err) {
-        return res.json({
+      if (this.changes === 0) {
+        return res.status(404).json({
           success: false,
-          message: err.message,
+          message: "Interest not found",
         });
       }
 
       res.json({
         success: true,
-        message: "Interest Rejected",
+        message: `Interest ${status}`,
       });
     }
   );
 };
+
+exports.acceptInterest = respondToInterest(STATUS.ACCEPTED);
+exports.rejectInterest = respondToInterest(STATUS.REJECTED);
 
 // ===============================
 // Get Matches
 // ===============================
+// An accepted interest is a match for both people; each sees the other one
 exports.getMatches = (req, res) => {
   db.all(
     `
@@ -157,15 +157,18 @@ exports.getMatches = (req, res) => {
     FROM interests
 
     INNER JOIN users
-      ON users.id = interests.senderId
+      ON users.id = CASE
+        WHEN interests.senderId = $me THEN interests.receiverId
+        ELSE interests.senderId
+      END
 
     LEFT JOIN profiles
       ON profiles.userId = users.id
 
-    WHERE interests.receiverId = ?
-      AND interests.status = 'Accepted'
+    WHERE $me IN (interests.senderId, interests.receiverId)
+      AND interests.status = $accepted
     `,
-    [req.params.id],
+    { $me: req.user.id, $accepted: STATUS.ACCEPTED },
     (err, rows) => {
       if (err) {
         return res.json({

@@ -4,8 +4,8 @@ const db = require("../database");
 // Create or Update Profile
 // ==========================
 exports.saveProfile = (req, res) => {
+  const userId = req.user.id;
   const {
-    userId,
     dob,
     gender,
     height,
@@ -23,7 +23,7 @@ exports.saveProfile = (req, res) => {
     familyDetails,
     partnerPreference,
     photo,
-  } = req.body;
+  } = req.body || {};
 
   db.get(
     "SELECT * FROM profiles WHERE userId = ?",
@@ -156,9 +156,18 @@ exports.saveProfile = (req, res) => {
 // ==========================
 // Get Single Profile
 // ==========================
+// From users, so members who haven't filled a profile yet still have a name
 exports.getProfile = (req, res) => {
   db.get(
-    "SELECT * FROM profiles WHERE userId = ?",
+    `
+    SELECT
+      profiles.*,
+      users.fullName AS userName
+    FROM users
+    LEFT JOIN profiles
+    ON profiles.userId = users.id
+    WHERE users.id = ?
+    `,
     [req.params.id],
     (err, profile) => {
       if (err) {
@@ -168,7 +177,14 @@ exports.getProfile = (req, res) => {
         });
       }
 
-      res.json(profile || {});
+      if (!profile) {
+        return res.status(404).json({
+          success: false,
+          message: "Profile not found",
+        });
+      }
+
+      res.json(profile);
     }
   );
 };
@@ -181,8 +197,7 @@ exports.getAllProfiles = (req, res) => {
     `
     SELECT
       profiles.*,
-      users.fullName AS userName,
-      users.email
+      users.fullName AS userName
     FROM profiles
     INNER JOIN users
     ON profiles.userId = users.id

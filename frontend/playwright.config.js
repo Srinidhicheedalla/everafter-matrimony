@@ -1,5 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Tests run their own backend + frontend on separate ports, with an in-memory DB
+// that starts empty every run, so the dev servers and dev data are never touched.
+const API_PORT = process.env.TEST_API_PORT ?? 5001;
+const APP_PORT = process.env.TEST_APP_PORT ?? 5174;
+
+const API_ORIGIN = `http://localhost:${API_PORT}`;
+const APP_URL = `http://localhost:${APP_PORT}`;
+
+// Read by tests/env.js
+process.env.API_URL = `${API_ORIGIN}/api`;
+
 export default defineConfig({
   testDir: './tests',
 
@@ -7,10 +18,10 @@ export default defineConfig({
 
   workers: 1,
 
-  reporter: 'html',
+  reporter: [['list'], ['html', { open: 'never' }]],
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: APP_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -18,15 +29,19 @@ export default defineConfig({
 
   webServer: [
     {
-      command: 'cd ../backend && npm start',
-      url: 'http://localhost:5000',
-      reuseExistingServer: true,
+      command: 'node server.js',
+      cwd: '../backend',
+      env: { PORT: String(API_PORT), DB_PATH: ':memory:' },
+      url: API_ORIGIN,
+      reuseExistingServer: false,
       timeout: 120000,
     },
     {
-      command: 'npm run dev',
-      url: 'http://localhost:5173',
-      reuseExistingServer: true,
+      // Real env vars beat frontend/.env.development, so the app talks to the test backend
+      command: `npm run dev -- --port ${APP_PORT} --strictPort`,
+      env: { VITE_API_URL: process.env.API_URL },
+      url: APP_URL,
+      reuseExistingServer: false,
       timeout: 120000,
     },
   ],

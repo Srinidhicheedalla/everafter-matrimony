@@ -5,43 +5,24 @@ function Navbar() {
   const { user, logout } = useAuth();
 
   return (
-    <nav
-      style={{
-        background: "#8B0000",
-        color: "white",
-        padding: "15px 40px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
-      <Link
-        to="/"
-        style={{
-          color: "white",
-          textDecoration: "none",
-          fontSize: "24px",
-          fontWeight: "bold",
-        }}
-      >
+    // Wraps onto two centered rows on phones, one row from sm up
+    <nav className="flex flex-wrap items-center justify-center sm:justify-between gap-x-6 gap-y-2 px-4 sm:px-10 py-3 sm:py-4 bg-[#8B0000] text-white">
+      <Link to="/" className="text-white text-xl sm:text-2xl font-bold">
         EverAfter Matrimony
       </Link>
 
-      <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
-        <Link to="/" style={{ color: "white", textDecoration: "none" }}>
+      <div className="flex items-center gap-5">
+        <Link to="/" className="text-white">
           Home
         </Link>
 
         {!user && (
           <>
-            <Link to="/login" style={{ color: "white", textDecoration: "none" }}>
+            <Link to="/login" className="text-white">
               Login
             </Link>
 
-            <Link
-              to="/register"
-              style={{ color: "white", textDecoration: "none" }}
-            >
+            <Link to="/register" className="text-white">
               Register
             </Link>
           </>
@@ -49,23 +30,13 @@ function Navbar() {
 
         {user && (
           <>
-            <Link
-              to="/dashboard"
-              style={{ color: "white", textDecoration: "none" }}
-            >
+            <Link to="/dashboard" className="text-white">
               Dashboard
             </Link>
 
             <button
               onClick={logout}
-              style={{
-                background: "white",
-                color: "#8B0000",
-                border: "none",
-                padding: "8px 15px",
-                cursor: "pointer",
-                borderRadius: "5px",
-              }}
+              className="bg-white text-[#8B0000] px-4 py-2 rounded-md"
             >
               Logout
             </button>

@@ -1,21 +1,40 @@
 @import "tailwindcss";
 
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
+/* margin/padding/box-sizing reset comes from Tailwind's preflight. In a layer so
+   utility classes (px-4 etc.) can override these; unlayered rules beat them all. */
+@layer base {
+    body{
+        font-family:Inter,Arial,sans-serif;
+        background:#faf8f6;
+        color:#222;
+        overflow-wrap:break-word;
+    }
 
-body{
-    font-family:Inter,Arial,sans-serif;
-    background:#faf8f6;
-    color:#222;
-}
+    /* Preflight strips form borders; under 16px iOS zooms in on focus */
+    input,select,textarea{
+        font-size:16px;
+        padding:10px;
+        border:1px solid #ccc;
+        border-radius:6px;
+        background:#fff;
+    }
 
-a{
-    text-decoration:none;
-}
+    /* Preflight resets headings to body text; restore a scale (inline styles still win) */
+    h1,h2,h3{
+        font-weight:700;
+        line-height:1.25;
+        margin-bottom:.5em;
+    }
+    h1{ font-size:clamp(26px, 5vw, 34px); }
+    h2{ font-size:clamp(20px, 4vw, 24px); }
+    h3{ font-size:18px; margin-top:1em; }
+    hr{ margin:12px 0; }
 
-button{
-    cursor:pointer;
+    a{
+        text-decoration:none;
+    }
+
+    button{
+        cursor:pointer;
+    }
 }

@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 
 function ViewProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const currentUser = JSON.parse(localStorage.getItem("user"));
-
   const [profile, setProfile] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadProfile();
@@ -16,22 +15,21 @@ function ViewProfile() {
 
   const loadProfile = async () => {
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/profile/${id}`
+      const res = await api.get(
+        `/profile/${id}`
       );
 
       setProfile(res.data);
     } catch (err) {
-      console.log(err);
+      setError(err.response?.data?.message || "Could not load profile");
     }
   };
 
   const sendInterest = async () => {
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/interest/send",
+      const res = await api.post(
+        "/interest/send",
         {
-          senderId: currentUser.id,
           receiverId: Number(id),
         }
       );
@@ -52,7 +50,7 @@ function ViewProfile() {
           fontSize: "22px",
         }}
       >
-        Loading...
+        {error || "Loading..."}
       </div>
     );
   }
@@ -60,9 +58,9 @@ function ViewProfile() {
   return (
     <div
       style={{
-        maxWidth: "900px",
+        width: "min(900px, 100% - 32px)",
         margin: "30px auto",
-        padding: "30px",
+        padding: "clamp(16px, 5vw, 30px)",
         background: "#fff",
         borderRadius: "10px",
         boxShadow: "0 0 15px rgba(0,0,0,.15)",

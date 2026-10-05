@@ -51,11 +51,11 @@ function Register() {
 
   return (
 
-    <div className="container">
+    <div className="container mx-auto px-4">
 
       <div
         style={{
-          width: "420px",
+          maxWidth: "420px",
           margin: "70px auto",
           padding: "30px",
           borderRadius: "12px",
@@ -130,7 +130,7 @@ function Register() {
           }}
         >
 
-          Already have an account?
+          Already have an account?{" "}
 
           <Link to="/login">
 

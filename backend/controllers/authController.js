@@ -2,17 +2,26 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const db = require("../database");
 
+// Non-strings must be rejected here: bcrypt throws on them inside the async
+// db callback, which Express can't catch, and the whole server crashes.
+const isFilled = (v) => typeof v === "string" && v.length > 0;
+
+// Emails are stored and looked up lowercased so "Ravi@x.com" can log in as "ravi@x.com"
+const normalizeEmail = (email) => email.trim().toLowerCase();
+
 // Register User
 exports.register = async (req, res) => {
   try {
-    const { fullName, email, password } = req.body;
+    const { fullName, email: rawEmail, password } = req.body || {};
 
-    if (!fullName || !email || !password) {
+    if (!isFilled(fullName) || !isFilled(rawEmail) || !isFilled(password)) {
       return res.status(400).json({
         success: false,
         message: "All fields are required."
       });
     }
+
+    const email = normalizeEmail(rawEmail);
 
     db.get(
       "SELECT * FROM users WHERE email = ?",
@@ -64,9 +73,9 @@ exports.register = async (req, res) => {
 
 // Login User
 exports.login = (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
 
-  if (!email || !password) {
+  if (!isFilled(email) || !isFilled(password)) {
     return res.status(400).json({
       success: false,
       message: "Email and password are required."
@@ -75,7 +84,7 @@ exports.login = (req, res) => {
 
   db.get(
     "SELECT * FROM users WHERE email = ?",
-    [email],
+    [normalizeEmail(email)],
     async (err, user) => {
       if (err) {
         return res.status(500).json({
@@ -84,19 +93,12 @@ exports.login = (req, res) => {
         });
       }
 
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: "User not found."
-        });
-      }
-
-      const isMatch = await bcrypt.compare(password, user.password);
-
-      if (!isMatch) {
+      // Same response for unknown email and wrong password, so login can't be
+      // used to check whether someone has an account
+      if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({
           success: false,
-          message: "Invalid password."
+          message: "Invalid email or password."
         });
       }
 

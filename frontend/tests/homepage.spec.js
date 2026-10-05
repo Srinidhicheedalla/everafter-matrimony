@@ -1,7 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-const BASE_URL = 'http://localhost:5173';
-const API_URL = 'http://localhost:5000/api';
+import { API_URL } from './env.js';
 
 const PASSWORD = 'Test@123';
 
@@ -59,13 +57,34 @@ async function registerUser(request, user) {
 }
 
 
-async function saveProfile(request, userId, user) {
+async function apiLogin(request, user) {
+  const response = await request.post(
+    API_URL + '/auth/login',
+    {
+      data: {
+        email: user.email,
+        password: user.password,
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  expect(
+    response.ok(),
+    'API login failed: ' + JSON.stringify(data)
+  ).toBeTruthy();
+
+  user.headers = { Authorization: 'Bearer ' + data.token };
+}
+
+
+async function saveProfile(request, user) {
   const response = await request.post(
     API_URL + '/profile/save',
     {
+      headers: user.headers,
       data: {
-        userId: userId,
-        userName: user.fullName,
         city: 'Hyderabad',
         religion: 'Hindu',
         education: 'B.Tech',
@@ -86,12 +105,12 @@ async function saveProfile(request, userId, user) {
 }
 
 
-async function sendInterest(request, senderId, receiverId) {
+async function sendInterest(request, sender, receiverId) {
   const response = await request.post(
     API_URL + '/interest/send',
     {
+      headers: sender.headers,
       data: {
-        senderId: senderId,
         receiverId: receiverId,
       },
     }
@@ -108,9 +127,10 @@ async function sendInterest(request, senderId, receiverId) {
 }
 
 
-async function getReceivedInterests(request, userId) {
+async function getReceivedInterests(request, receiver) {
   const response = await request.get(
-    API_URL + '/interest/received/' + userId
+    API_URL + '/interest/received',
+    { headers: receiver.headers }
   );
 
   const data = await response.json();
@@ -153,7 +173,7 @@ function findInterestByName(interests, fullName, status) {
 
 async function waitForInterestByName(
   request,
-  receiverId,
+  receiver,
   senderName,
   expectedStatus,
   retries
@@ -163,14 +183,14 @@ async function waitForInterestByName(
   for (let i = 0; i < maxRetries; i++) {
     const data = await getReceivedInterests(
       request,
-      receiverId
+      receiver
     );
 
     const interests = extractInterests(data);
 
     console.log(
       'Received interests for ' +
-        receiverId +
+        receiver.fullName +
         ':',
       JSON.stringify(interests)
     );
@@ -207,7 +227,7 @@ async function waitForInterestByName(
     'Interest not found for sender "' +
       senderName +
       '" -> receiver ' +
-      receiverId +
+      receiver.fullName +
       ', expected status "' +
       expectedStatus +
       '"'
@@ -215,11 +235,11 @@ async function waitForInterestByName(
 }
 
 
-async function login(page, user) {
-  await page.goto(BASE_URL + '/login');
+async function login(page, email, password) {
+  await page.goto('/login');
 
-  await page.getByPlaceholder('Email').fill(user.email);
-  await page.getByPlaceholder('Password').fill(user.password);
+  await page.getByPlaceholder('Email').fill(email);
+  await page.getByPlaceholder('Password').fill(password);
 
   await page.getByRole('button', { name: 'Login' }).click();
 
@@ -227,40 +247,29 @@ async function login(page, user) {
 }
 
 async function openSearch(page) {
-  await page.goto(BASE_URL + '/search');
+  await page.goto('/search');
   await page.waitForLoadState('networkidle');
 }
 
 
 async function getProfileCard(page, fullName) {
   return page
-    .locator('div')
-    .filter({
-      has: page.getByRole('heading', {
-        name: fullName,
-        exact: true,
-      }),
+    .getByRole('heading', {
+      name: fullName,
+      exact: true,
     })
-    .first();
+    .locator('..');
 }
 
 
 async function openInterests(page) {
-  await page.goto(BASE_URL + '/interests');
+  await page.goto('/interests');
   await page.waitForLoadState('networkidle');
 }
 
 
 async function getInterestCard(page, fullName) {
-  return page
-    .locator('div')
-    .filter({
-      has: page.getByRole('heading', {
-        name: fullName,
-        exact: true,
-      }),
-    })
-    .first();
+  return getProfileCard(page, fullName);
 }
 
 
@@ -298,9 +307,13 @@ test.beforeAll(async function ({ request }) {
   expect(USER_B_ID).toBeTruthy();
   expect(USER_C_ID).toBeTruthy();
 
-  await saveProfile(request, USER_A_ID, USER_A);
-  await saveProfile(request, USER_B_ID, USER_B);
-  await saveProfile(request, USER_C_ID, USER_C);
+  await apiLogin(request, USER_A);
+  await apiLogin(request, USER_B);
+  await apiLogin(request, USER_C);
+
+  await saveProfile(request, USER_A);
+  await saveProfile(request, USER_B);
+  await saveProfile(request, USER_C);
 });
 
 
@@ -344,13 +357,13 @@ test('Registration test', async function ({ request }) {
 // ============================================================
 
 test('Invalid login test', async function ({ page }) {
-  await page.goto(BASE_URL + '/login');
+  await page.goto('/login');
 
-  await page.getByLabel('Email').fill(
+  await page.getByPlaceholder('Email').fill(
     'invalid' + Date.now() + '@gmail.com'
   );
 
-  await page.getByLabel('Password').fill(
+  await page.getByPlaceholder('Password').fill(
     'WrongPassword@123'
   );
 
@@ -424,12 +437,17 @@ test('Profile update test', async function ({ page }) {
     USER_A.password
   );
 
-  await page.goto(BASE_URL + '/profile');
+  await page.goto('/profile');
   await page.waitForLoadState('networkidle');
 
-  const bodyText = await page.locator('body').innerText();
+  await page.getByPlaceholder('City').fill('Pune');
 
-  expect(bodyText.length).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Save Profile' }).click();
+  await page.waitForLoadState('networkidle');
+
+  await page.reload();
+
+  await expect(page.getByPlaceholder('City')).toHaveValue('Pune');
 });
 
 
@@ -575,6 +593,19 @@ test('Send interest test', async function ({ page }) {
     response.status()
   );
 
+  // The app alert()s right after this response; an open dialog blocks the
+  // page, so reading the body before dismissing it would hang forever
+  const dialog = await dialogPromise;
+
+  if (dialog) {
+    console.log(
+      'Send interest dialog:',
+      dialog.message()
+    );
+
+    await dialog.dismiss();
+  }
+
   const responseData = await response.json();
 
   console.log(
@@ -593,17 +624,6 @@ test('Send interest test', async function ({ page }) {
     'Send Interest returned success=false: ' +
       JSON.stringify(responseData)
   ).toBeTruthy();
-
-  const dialog = await dialogPromise;
-
-  if (dialog) {
-    console.log(
-      'Send interest dialog:',
-      dialog.message()
-    );
-
-    await dialog.dismiss();
-  }
 });
 
 
@@ -623,7 +643,7 @@ test('Received interest test', async function ({
 
   const interest = await waitForInterestByName(
     request,
-    USER_B_ID,
+    USER_B,
     USER_A.fullName,
     'Pending',
     10
@@ -695,7 +715,7 @@ test('Accept interest test', async function ({
 
   const interest = await waitForInterestByName(
     request,
-    USER_B_ID,
+    USER_B,
     USER_A.fullName,
     'Accepted',
     10
@@ -713,7 +733,8 @@ test('Match confirmation test', async function ({
   request,
 }) {
   const response = await request.get(
-    API_URL + '/interest/matches/' + USER_B_ID
+    API_URL + '/interest/matches',
+    { headers: USER_B.headers }
   );
 
   const data = await response.json();
@@ -750,7 +771,7 @@ test('Reject interest test', async function ({
 }) {
   await sendInterest(
     request,
-    USER_C_ID,
+    USER_C,
     USER_B_ID
   );
 
@@ -799,7 +820,7 @@ test('Reject interest test', async function ({
 
   const interest = await waitForInterestByName(
     request,
-    USER_B_ID,
+    USER_B,
     USER_C.fullName,
     'Rejected',
     10
@@ -849,7 +870,7 @@ test('Notifications test', async function ({ page }) {
 test('Protected route test', async function ({ page }) {
   await page.context().clearCookies();
 
-  await page.goto(BASE_URL + '/profile');
+  await page.goto('/profile');
 
   await page.waitForLoadState('networkidle');
 
@@ -868,7 +889,7 @@ test('Back to Search test', async function ({ page }) {
     USER_A.password
   );
 
-  await page.goto(BASE_URL + '/search');
+  await page.goto('/search');
 
   await page.waitForLoadState('networkidle');
 
@@ -897,6 +918,8 @@ test('Back to Search test', async function ({ page }) {
 
   await page.waitForLoadState('networkidle');
 
+  // count() doesn't wait: while the profile was still loading it returned 0
+  // and the test went looking for a link that never exists. .or() auto-waits.
   const backButton = page.getByRole(
     'button',
     {
@@ -905,19 +928,15 @@ test('Back to Search test', async function ({ page }) {
     }
   );
 
-  if (await backButton.count()) {
-    await backButton.click();
-  } else {
-    const backLink = page.getByRole(
-      'link',
-      {
-        name: '← Back to Search',
-        exact: true,
-      }
-    );
+  const backLink = page.getByRole(
+    'link',
+    {
+      name: '← Back to Search',
+      exact: true,
+    }
+  );
 
-    await backLink.click();
-  }
+  await backButton.or(backLink).click();
 
   await page.waitForLoadState('networkidle');
 

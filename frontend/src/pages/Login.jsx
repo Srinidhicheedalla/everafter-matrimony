@@ -52,11 +52,11 @@ function Login() {
 
   return (
 
-    <div className="container">
+    <div className="container mx-auto px-4">
 
       <div
         style={{
-          width: "420px",
+          maxWidth: "420px",
           margin: "70px auto",
           padding: "30px",
           borderRadius: "12px",
@@ -96,6 +96,7 @@ function Login() {
 
           <button
             type="submit"
+            disabled={loading}
             style={{
               width: "100%",
               padding: "12px",
@@ -118,7 +119,7 @@ function Login() {
           }}
         >
 
-          Don't have an account?
+          Don't have an account?{" "}
 
           <Link to="/register">
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 
 function Search() {
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ function Search() {
 
   const fetchProfiles = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/profile/all");
+      const res = await api.get("/profile/all");
       setProfiles(res.data);
       setFilteredProfiles(res.data);
     } catch (err) {

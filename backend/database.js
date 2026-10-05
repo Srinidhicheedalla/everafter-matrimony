@@ -1,6 +1,14 @@
+const path = require("path");
 const sqlite3 = require("sqlite3").verbose();
 
-const db = new sqlite3.Database("./everafter.db", (err) => {
+// Relative to this folder, not the cwd: starting the server from elsewhere
+// used to silently create a new empty DB. ":memory:" (used by tests) is passed through.
+const DB_PATH =
+  process.env.DB_PATH === ":memory:"
+    ? ":memory:"
+    : path.resolve(__dirname, process.env.DB_PATH || "everafter.db");
+
+const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.log(err.message);
   } else {
