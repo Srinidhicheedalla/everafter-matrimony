@@ -438,12 +438,20 @@ test('Profile update test', async function ({ page }) {
   );
 
   await page.goto('/profile');
-  await page.waitForLoadState('networkidle');
+
+  // Wait for the saved profile to load, or it would overwrite what we type
+  await expect(page.getByPlaceholder('City')).toHaveValue('Hyderabad');
 
   await page.getByPlaceholder('City').fill('Pune');
 
+  // The alert appears once the save has finished; reloading before that
+  // aborted the request (flaky "frame was detached" failures)
+  const dialogPromise = page.waitForEvent('dialog');
+
   await page.getByRole('button', { name: 'Save Profile' }).click();
-  await page.waitForLoadState('networkidle');
+
+  const dialog = await dialogPromise;
+  await dialog.accept();
 
   await page.reload();
 

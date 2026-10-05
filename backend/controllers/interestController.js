@@ -11,16 +11,16 @@ const STATUS = {
 // ===============================
 exports.sendInterest = (req, res) => {
   const senderId = req.user.id;
-  const { receiverId } = req.body || {};
+  const receiverId = Number(req.body?.receiverId);
 
-  if (!receiverId) {
+  if (!Number.isInteger(receiverId) || receiverId <= 0) {
     return res.json({
       success: false,
       message: "Receiver is required",
     });
   }
 
-  if (senderId == receiverId) {
+  if (senderId === receiverId) {
     return res.json({
       success: false,
       message: "You cannot send interest to yourself",
@@ -30,9 +30,11 @@ exports.sendInterest = (req, res) => {
   // One interest per pair, whichever direction: if B could also send to A,
   // accepting both would list the same match twice
   db.get(
-    `SELECT senderId FROM interests
-     WHERE (senderId=$a AND receiverId=$b)
-        OR (senderId=$b AND receiverId=$a)`,
+    `SELECT
+       EXISTS (SELECT 1 FROM users WHERE id = $b) AS receiverExists,
+       (SELECT senderId FROM interests
+        WHERE (senderId=$a AND receiverId=$b)
+           OR (senderId=$b AND receiverId=$a)) AS existingSender`,
     { $a: senderId, $b: receiverId },
     (err, row) => {
       if (err) {
@@ -42,11 +44,18 @@ exports.sendInterest = (req, res) => {
         });
       }
 
-      if (row) {
+      if (!row.receiverExists) {
+        return res.json({
+          success: false,
+          message: "Member not found",
+        });
+      }
+
+      if (row.existingSender !== null) {
         return res.json({
           success: false,
           message:
-            row.senderId == senderId
+            row.existingSender === senderId
               ? "Interest already sent"
               : "This member already sent you an interest. Check your Interests page.",
         });
@@ -57,6 +66,15 @@ exports.sendInterest = (req, res) => {
          VALUES(?,?,?)`,
         [senderId, receiverId, STATUS.PENDING],
         function (err) {
+          // Simultaneous sends (double click) both pass the check above;
+          // the one-per-pair index in database.js rejects the extras
+          if (err?.code === "SQLITE_CONSTRAINT") {
+            return res.json({
+              success: false,
+              message: "Interest already sent",
+            });
+          }
+
           if (err) {
             return res.json({
               success: false,

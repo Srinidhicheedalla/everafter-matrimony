@@ -156,3 +156,54 @@ test('Profile shows the member name even before they fill a profile', async ({ r
   const missing = await request.get(`${API}/profile/999999999`, { headers: viewer.headers });
   expect(missing.status()).toBe(404);
 });
+
+test('Registration rejects invalid input', async ({ request }) => {
+  const cases = [
+    { fullName: 'X', email: 'not-an-email', password: PASSWORD },
+    { fullName: 'X', email: `short${Date.now()}@gmail.com`, password: 'a1' },
+    { fullName: '   ', email: `blank${Date.now()}@gmail.com`, password: PASSWORD },
+  ];
+  for (const data of cases) {
+    const res = await request.post(`${API}/auth/register`, { data });
+    expect(res.status(), JSON.stringify(data)).toBe(400);
+  }
+});
+
+test('Simultaneous sign-ups with one email: one wins, others get 409', async ({ request }) => {
+  const data = { fullName: 'Race', email: `race${Date.now()}@gmail.com`, password: PASSWORD };
+  const statuses = await Promise.all(
+    [1, 2, 3].map(async () => (await request.post(`${API}/auth/register`, { data })).status())
+  );
+  expect(statuses.sort()).toEqual([201, 409, 409]);
+});
+
+test('Malformed JSON and unknown routes answer with JSON, not an HTML stack trace', async ({ request }) => {
+  const malformed = await request.post(`${API}/auth/login`, {
+    headers: { 'Content-Type': 'application/json' },
+    data: '{"email": ',
+  });
+  expect(malformed.status()).toBe(400);
+  expect(await malformed.json()).toEqual({ success: false, message: 'Invalid request' });
+
+  const unknown = await request.get(`${API}/does-not-exist`);
+  expect(unknown.status()).toBe(404);
+  expect((await unknown.json()).success).toBe(false);
+});
+
+test('Interest needs a real, existing receiver', async ({ request }) => {
+  const sender = await signup(request, 'sender');
+  for (const receiverId of [999999999, 'abc', -1, null]) {
+    const body = await (
+      await request.post(`${API}/interest/send`, { headers: sender.headers, data: { receiverId } })
+    ).json();
+    expect(body.success, String(receiverId)).toBe(false);
+  }
+});
+
+test('Search does not list your own profile', async ({ request }) => {
+  const me = await signup(request, 'me');
+  await request.post(`${API}/profile/save`, { headers: me.headers, data: { city: 'Pune' } });
+
+  const all = await (await request.get(`${API}/profile/all`, { headers: me.headers })).json();
+  expect(all.some((p) => p.userId === me.id)).toBe(false);
+});

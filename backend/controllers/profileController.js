@@ -192,6 +192,7 @@ exports.getProfile = (req, res) => {
 // ==========================
 // Get All Profiles
 // ==========================
+// Other members only: listing yourself let you "send interest" to yourself
 exports.getAllProfiles = (req, res) => {
   db.all(
     `
@@ -201,8 +202,9 @@ exports.getAllProfiles = (req, res) => {
     FROM profiles
     INNER JOIN users
     ON profiles.userId = users.id
+    WHERE profiles.userId != ?
     `,
-    [],
+    [req.user.id],
     (err, rows) => {
       if (err) {
         return res.status(500).json({

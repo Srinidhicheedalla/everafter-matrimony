@@ -41,6 +41,25 @@ app.get("/", (req, res) => {
   });
 });
 
+// ===========================
+// Errors
+// ===========================
+// JSON instead of Express's default HTML page, which includes a stack trace
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Not found" });
+});
+
+// e.g. malformed JSON body (400) or an oversized one (413)
+app.use((err, req, res, next) => {
+  const status = err.status || 500;
+  if (status >= 500) console.error(err);
+
+  res.status(status).json({
+    success: false,
+    message: status < 500 ? "Invalid request" : "Something went wrong",
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
