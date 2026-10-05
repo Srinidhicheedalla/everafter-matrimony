@@ -359,11 +359,11 @@ test('Registration test', async function ({ request }) {
 test('Invalid login test', async function ({ page }) {
   await page.goto('/login');
 
-  await page.getByPlaceholder('Email').fill(
+  await page.getByLabel('Email').fill(
     'invalid' + Date.now() + '@gmail.com'
   );
 
-  await page.getByPlaceholder('Password').fill(
+  await page.getByLabel('Password').fill(
     'WrongPassword@123'
   );
 

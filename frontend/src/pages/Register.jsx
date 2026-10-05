@@ -71,6 +71,7 @@ function Register() {
             type="text"
             name="fullName"
             placeholder="Full Name"
+            aria-label="Full Name"
             value={form.fullName}
             onChange={handleChange}
             style={{
@@ -84,6 +85,7 @@ function Register() {
             type="email"
             name="email"
             placeholder="Email"
+            aria-label="Email"
             value={form.email}
             onChange={handleChange}
             style={{
@@ -97,6 +99,7 @@ function Register() {
             type="password"
             name="password"
             placeholder="Password"
+            aria-label="Password"
             value={form.password}
             onChange={handleChange}
             style={{

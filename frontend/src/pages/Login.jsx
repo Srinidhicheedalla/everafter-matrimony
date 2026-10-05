@@ -72,6 +72,7 @@ function Login() {
             type="email"
             name="email"
             placeholder="Email"
+            aria-label="Email"
             value={form.email}
             onChange={handleChange}
             style={{
@@ -85,6 +86,7 @@ function Login() {
             type="password"
             name="password"
             placeholder="Password"
+            aria-label="Password"
             value={form.password}
             onChange={handleChange}
             style={{
